@@ -58,8 +58,11 @@ user:prolog_trace_interception(Port, Frame0, _CHP, Action) :-
 		      Reply),
 	debug(trace, 'Action: ~p', [Reply]),
 	trace_action(Reply, Frame0, Frame, Action).
-user:prolog_trace_interception(_Port, _Frame0, _CHP, nodebug) :-
-	pengine_self(_).
+user:prolog_trace_interception(Port, Frame0, _CHP, nodebug) :-
+	pengine_self(_),
+	prolog_frame_attribute(Frame0, goal, Goal),
+	prolog_frame_attribute(Frame0, level, Depth),
+	debug(trace, '[~d] ~w: Goal ~p --> NODEBUG', [Depth, Port, Goal]).
 
 trace_action(continue, Frame, Frame, continue) :- !.
 trace_action(continue, _, _, skip).
