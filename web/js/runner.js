@@ -422,11 +422,34 @@ define([ "jquery", "config", "preferences",
       var goal = $.el.span({class:"goal"});
       $(goal).html(data.data.goal);
 
-      addAnswer(this, $.el.div({class:"prolog-trace"},
-			       $.el.span({class:"port "+data.data.port},
-					 data.data.port),
-			       goal));
-      data.pengine.respond("continue");
+      function capitalizeFirstLetter(string) {
+	return string.charAt(0).toUpperCase() + string.slice(1);
+      }
+
+      function button(label, action) {
+	var btn = $.el.button(label);
+	$(btn).on("click", function(ev) {
+	  data.pengine.respond(action);
+	  $(ev.target).parent().remove();
+	});
+	return btn;
+      }
+
+      addAnswer(this,
+		$.el.div({class:"prolog-trace"},
+			 $.el.span({ class:"port "+data.data.port,
+				     style:"margin-left:"+data.data.depth*5+"px"
+			           },
+				   capitalizeFirstLetter(data.data.port),
+				   ":"),
+			 goal));
+      addAnswer(this,
+		$.el.div({class:"trace-buttons"},
+			 button("Creep", "continue"),
+			 button("Skip", "skip"),
+			 button("No debug", "nodebug"),
+			 button("Abort", "abort")));
+      this.prologRunner('setState', "wait-debug");
     },
 
     /**
@@ -671,6 +694,7 @@ define([ "jquery", "config", "preferences",
    *   - "running"    - Pengine is running
    *   - "wait-next"  - Pengine produced a non-deterministic answer
    *   - "wait-input" - Pengine waits for input
+   *   - "wait-debug" - Pengine waits for for debugger reply
    *   - "true"       - Pengine produced the last answer
    *   - "false"      - Pengine failed
    *   - "error"      - Pengine raised an error
@@ -720,7 +744,8 @@ define([ "jquery", "config", "preferences",
 
    /**
     * @returns {Boolean} true if the related pengine is alive.  That
-    * means it has state `"running"`, `"wait-next"` or `"wait-input"`
+    * means it has state `"running"`, `"wait-next"`, `"wait-input"` or
+    * `"wait-debug"`
     */
    alive: function() {
      return aliveState(this.prologRunner('getState'));
@@ -748,6 +773,7 @@ define([ "jquery", "config", "preferences",
     { case "running":
       case "wait-next":
       case "wait-input":
+      case "wait-debug":
 	return true;
       default:
 	return false;

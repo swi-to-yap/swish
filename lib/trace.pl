@@ -42,16 +42,18 @@ Allow tracing pengine execution under SWISH.
 user:prolog_trace_interception(Port, Frame0, _CHP, Action) :-
 	pengine_self(Pengine),
 	pengine_property(Pengine, module(Module)),
-	debug(trace, 'Trace ~p', [Port]),
 	pengine_frame(Frame0, Frame),
 	prolog_frame_attribute(Frame0, goal, Goal0),
+	prolog_frame_attribute(Frame0, level, Depth0),
+	Depth is Depth0 - 25,
 	unqualify(Goal0, Module, Goal),
-	debug(trace, 'Goal ~p', [Goal]),
+	debug(trace, '[~d] ~w: Goal ~p', [Depth0, Port, Goal]),
 	term_html(Goal, GoalString),
 	functor(Port, PortName, _),
-	pengine_input(_{type: trace,
-			port: PortName,
-			goal: GoalString
+	pengine_input(_{type:  trace,
+			port:  PortName,
+			depth: Depth,
+			goal:  GoalString
 		       },
 		      Reply),
 	debug(trace, 'Action: ~p', [Reply]),
@@ -61,6 +63,9 @@ user:prolog_trace_interception(_Port, _Frame0, _CHP, nodebug) :-
 
 trace_action(continue, Frame, Frame, continue) :- !.
 trace_action(continue, _, _, skip).
+trace_action(skip,     _, _, skip).
+trace_action(nodebug,  _, _, nodebug).
+trace_action(abort,    _, _, abort).
 
 pengine_frame(Frame0, Frame) :-
 	pengine_self(Me),
@@ -74,6 +79,8 @@ parent_frame(Frame, Parent) :-
 	parent_frame(Parent0, Parent).
 
 unqualify(M:G, M, G) :- !.
+unqualify(system:G, _, G) :- !.
+unqualify(user:G, _, G) :- !.
 unqualify(G, _, G).
 
 term_html(Term, HTMlString) :-
