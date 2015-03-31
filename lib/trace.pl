@@ -28,7 +28,9 @@
 */
 
 :- module(swish_trace, []).
+:- use_module(library(debug)).
 :- use_module(library(pengines)).
+:- use_module(library(sandbox), []).
 :- use_module(library(http/term_html)).
 :- use_module(library(http/html_write)).
 
@@ -38,25 +40,41 @@ Allow tracing pengine execution under SWISH.
 */
 
 user:prolog_trace_interception(Port, Frame0, _CHP, Action) :-
-	pengine_frame(Frame0, _Frame),
-	prolog_frame_attribute(Frame0, goal, Goal),
-	term_html(GoalString, Goal),
+	pengine_self(Pengine),
+	pengine_property(Pengine, module(Module)),
+	debug(trace, 'Trace ~p', [Port]),
+	pengine_frame(Frame0, Frame),
+	prolog_frame_attribute(Frame0, goal, Goal0),
+	unqualify(Goal0, Module, Goal),
+	debug(trace, 'Goal ~p', [Goal]),
+	term_html(Goal, GoalString),
 	functor(Port, PortName, _),
 	pengine_input(_{type: trace,
 			port: PortName,
 			goal: GoalString
 		       },
-		      Action).
+		      Reply),
+	debug(trace, 'Action: ~p', [Reply]),
+	trace_action(Reply, Frame0, Frame, Action).
+user:prolog_trace_interception(_Port, _Frame0, _CHP, nodebug) :-
+	pengine_self(_).
+
+trace_action(continue, Frame, Frame, continue) :- !.
+trace_action(continue, _, _, skip).
 
 pengine_frame(Frame0, Frame) :-
 	pengine_self(Me),
 	parent_frame(Frame0, Frame),
-	prolog_frame_attribute(Frame, predicate_indicator, Me:_Name/_Arity), !.
+	prolog_frame_attribute(Frame, predicate_indicator, Me:Name/Arity), !,
+	debug(trace, '~p', [Me:Name/Arity]).
 
 parent_frame(Frame, Frame).
 parent_frame(Frame, Parent) :-
 	prolog_frame_attribute(Frame, parent, Parent0),
 	parent_frame(Parent0, Parent).
+
+unqualify(M:G, M, G) :- !.
+unqualify(G, _, G).
 
 term_html(Term, HTMlString) :-
 	pengine_self(Pengine),
@@ -66,3 +84,13 @@ term_html(Term, HTMlString) :-
 			    quoted(true)
 			  ])), Tokens),
 	with_output_to(string(HTMlString), print_html(Tokens)).
+
+
+		 /*******************************
+		 *	 ALLOW DEBUGGING	*
+		 *******************************/
+
+:- multifile
+	sandbox:safe_primitive/1.
+
+sandbox:safe_primitive(system:trace).

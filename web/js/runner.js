@@ -416,6 +416,20 @@ define([ "jquery", "config", "preferences",
     },
 
     /**
+     * Handle trace events
+     */
+    trace: function(data) {
+      var goal = $.el.span({class:"goal"});
+      $(goal).html(data.data.goal);
+
+      addAnswer(this, $.el.div({class:"prolog-trace"},
+			       $.el.span({class:"port "+data.data.port},
+					 data.data.port),
+			       goal));
+      data.pengine.respond("continue");
+    },
+
+    /**
      * set the placeholder of the input field.  This is normally
      * done from the pengine's onprompt handler
      * @param {String} p the new placeholder
@@ -801,10 +815,15 @@ define([ "jquery", "config", "preferences",
 
   function handlePrompt() {
     var elem   = this.pengine.options.runner;
-    var prompt = this.data ? this.data : "Please enter a Prolog term";
 
-    elem.prologRunner('setPrompt', prompt);
-    elem.prologRunner('setState', "wait-input");
+    if ( this.data && this.data.type == "trace" ) {
+      elem.prologRunner('trace', this);
+    } else {
+      var prompt = this.data ? this.data : "Please enter a Prolog term";
+
+      elem.prologRunner('setPrompt', prompt);
+      elem.prologRunner('setState', "wait-input");
+    }
   }
 
   /**
