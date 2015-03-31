@@ -176,11 +176,12 @@ span.port
   margin-right: 0.5ex;
   background-color: #ccc;
   display: inline-block;
-  width: 7ex;
+  width: 11ex;
   text-align: right;
 }
 
 span.port.fail { color: #f00; }
 span.port.redo { color: #ff0; }
 span.port.exit { color: #0c0; }
+span.port.exception { color: #f0f; }
 
