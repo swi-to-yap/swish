@@ -50,6 +50,8 @@ Allow tracing pengine execution under SWISH.
 
 user:prolog_trace_interception(Port, Frame, _CHP, Action) :-
 	pengine_self(Pengine),
+	prolog_frame_attribute(Frame, predicate_indicator, PI),
+	debug(trace, 'HOOK: ~p ~p', [Port, PI]),
 	pengine_property(Pengine, module(Module)),
 	wrapper_frame(Frame, WrapperFrame),
 	debug(trace, 'Me: ~p, wrapper: ~p', [Frame, WrapperFrame]),
@@ -67,24 +69,29 @@ user:prolog_trace_interception(Port, Frame, _CHP, Action) :-
 			goal:  GoalString
 		       },
 		      Reply),
-	debug(trace, 'Action: ~p', [Reply]),
-	trace_action(Reply, Frame, Action), !.
+	trace_action(Reply, Port, Frame, Action), !,
+	debug(trace, 'Action: ~p --> ~p', [Reply, Action]).
 user:prolog_trace_interception(Port, Frame0, _CHP, nodebug) :-
 	pengine_self(_),
 	prolog_frame_attribute(Frame0, goal, Goal),
 	prolog_frame_attribute(Frame0, level, Depth),
 	debug(trace, '[~d] ~w: Goal ~p --> NODEBUG', [Depth, Port, Goal]).
 
-trace_action(continue, Frame, continue) :-
+trace_action(continue, _Port, Frame, continue) :-
 	pengine_self(Me),
 	prolog_frame_attribute(Frame, predicate_indicator, Me:Name/Arity),
 	functor(Head, Name, Arity),
 	\+ pengine_io_predicate(Head),
         debug(trace, '~p', [Me:Name/Arity]).
-trace_action(continue, _, skip).
-trace_action(skip,     _, skip).
-trace_action(nodebug,  _, nodebug).
-trace_action(abort,    _, abort).
+trace_action(continue, Port, _, skip) :-
+	box_enter(Port), !.
+trace_action(continue, _, _, continue).
+trace_action(skip,     _, _, skip).
+trace_action(nodebug,  _, _, nodebug).
+trace_action(abort,    _, _, abort).
+
+box_enter(call).
+box_enter(redo(_)).
 
 wrapper_frame(Frame0, Frame) :-
 	parent_frame(Frame0, Frame),
