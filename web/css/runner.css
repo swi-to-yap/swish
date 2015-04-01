@@ -188,14 +188,21 @@ button.up       { background-image: url("../icons/stepOut.png"); }
 button.retry    { background-image: url("../icons/retry.png"); }
 button.abort    { background-image: url("../icons/abort.png"); }
 
+span.depth
+{ display: inline-block;
+  font-weight: bold;
+  background-image: url("../icons/depth.png");
+}
+
 span.port
 { font-weight: bold;
   padding-right: 0.5ex;
   margin-right: 0.5ex;
-  background-color: #ccc;
+  background-color: #ccf;
   display: inline-block;
   width: 11ex;
   text-align: right;
+  border-radius: 5px;
 }
 
 span.port.fail { color: #f00; }

@@ -440,8 +440,10 @@ define([ "jquery", "config", "preferences",
 
       addAnswer(this,
 		$.el.div({class:"prolog-trace"},
-			 $.el.span({ class:"port "+data.data.port,
-				     style:"margin-left:"+data.data.depth*5+"px"
+			 $.el.span({ class:"depth",
+			             style:"width:"+(data.data.depth*5-1)+"px"
+				   }, "\u00A0"), /* &nbsp; */
+			 $.el.span({ class:"port "+data.data.port
 			           },
 				   capitalizeFirstLetter(data.data.port),
 				   ":"),
