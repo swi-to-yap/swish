@@ -803,7 +803,9 @@ define([ "jquery", "config", "preferences",
     var elem = this.pengine.options.runner;
     var data = elem.data('prologRunner');
 
-    this.pengine.ask(termNoFullStop(data.query.query));
+    this.pengine.ask("'$swish wrapper'((" +
+		     termNoFullStop(data.query.query) +
+		     "))");
     elem.prologRunner('setState', "running");
   }
 

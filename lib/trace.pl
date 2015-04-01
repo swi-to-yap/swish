@@ -27,25 +27,36 @@
     the GNU General Public License.
 */
 
-:- module(swish_trace, []).
+:- module(swish_trace,
+	  [ '$swish wrapper'/1		% +Goal
+	  ]).
 :- use_module(library(debug)).
 :- use_module(library(pengines)).
+:- use_module(library(pengines_io), [pengine_io_predicate/1]).
 :- use_module(library(sandbox), []).
 :- use_module(library(http/term_html)).
 :- use_module(library(http/html_write)).
+
+:- meta_predicate
+	'$swish wrapper'(0).
 
 /** <module>
 
 Allow tracing pengine execution under SWISH.
 */
 
-user:prolog_trace_interception(Port, Frame0, _CHP, Action) :-
+:- multifile
+	user:prolog_trace_interception/4.
+
+user:prolog_trace_interception(Port, Frame, _CHP, Action) :-
 	pengine_self(Pengine),
 	pengine_property(Pengine, module(Module)),
-	pengine_frame(Frame0, Frame),
-	prolog_frame_attribute(Frame0, goal, Goal0),
-	prolog_frame_attribute(Frame0, level, Depth0),
-	Depth is Depth0 - 25,
+	wrapper_frame(Frame, WrapperFrame),
+	debug(trace, 'Me: ~p, wrapper: ~p', [Frame, WrapperFrame]),
+	prolog_frame_attribute(WrapperFrame, level, WrapperDepth),
+	prolog_frame_attribute(Frame, goal, Goal0),
+	prolog_frame_attribute(Frame, level, Depth0),
+	Depth is Depth0 - WrapperDepth - 1,
 	unqualify(Goal0, Module, Goal),
 	debug(trace, '[~d] ~w: Goal ~p', [Depth0, Port, Goal]),
 	term_html(Goal, GoalString),
@@ -57,24 +68,32 @@ user:prolog_trace_interception(Port, Frame0, _CHP, Action) :-
 		       },
 		      Reply),
 	debug(trace, 'Action: ~p', [Reply]),
-	trace_action(Reply, Frame0, Frame, Action).
+	trace_action(Reply, Frame, Action), !.
 user:prolog_trace_interception(Port, Frame0, _CHP, nodebug) :-
 	pengine_self(_),
 	prolog_frame_attribute(Frame0, goal, Goal),
 	prolog_frame_attribute(Frame0, level, Depth),
 	debug(trace, '[~d] ~w: Goal ~p --> NODEBUG', [Depth, Port, Goal]).
 
-trace_action(continue, Frame, Frame, continue) :- !.
-trace_action(continue, _, _, skip).
-trace_action(skip,     _, _, skip).
-trace_action(nodebug,  _, _, nodebug).
-trace_action(abort,    _, _, abort).
-
-pengine_frame(Frame0, Frame) :-
+trace_action(continue, Frame, continue) :-
 	pengine_self(Me),
+	prolog_frame_attribute(Frame, predicate_indicator, Me:Name/Arity),
+	functor(Head, Name, Arity),
+	\+ pengine_io_predicate(Head),
+        debug(trace, '~p', [Me:Name/Arity]).
+trace_action(continue, _, skip).
+trace_action(skip,     _, skip).
+trace_action(nodebug,  _, nodebug).
+trace_action(abort,    _, abort).
+
+wrapper_frame(Frame0, Frame) :-
 	parent_frame(Frame0, Frame),
-	prolog_frame_attribute(Frame, predicate_indicator, Me:Name/Arity), !,
-	debug(trace, '~p', [Me:Name/Arity]).
+	prolog_frame_attribute(Frame, predicate_indicator, PI),
+	debug(trace, 'Parent: ~p', [PI]),
+	(   PI == swish_call/1
+	->  true
+	;   PI == swish_trace:swish_call/1
+	), !.
 
 parent_frame(Frame, Frame).
 parent_frame(Frame, Parent) :-
@@ -96,6 +115,36 @@ term_html(Term, HTMlString) :-
 	with_output_to(string(HTMlString), print_html(Tokens)).
 
 
+%%	'$swish wrapper'(:Goal)
+%
+%	Wrap a SWISH goal in '$swish  wrapper'. This has two advantages:
+%	we can detect that the tracer is   operating  on a SWISH goal by
+%	inspecting the stack and we can  save/restore the debug state to
+%	deal with debugging next solutions.
+
+:- meta_predicate swish_call(0).
+
+'$swish wrapper'(Goal) :-
+	call_cleanup(swish_call(Goal), Det=true),
+	(   tracing,
+	    var(Det)
+	->  (   notrace
+	    ;	debug(trace, 'Restoring tracer', []),
+	        trace,
+		fail
+	    )
+	;   true
+	).
+
+swish_call(Goal) :-
+	Goal,
+	no_lco.
+
+no_lco.
+
+:- '$hide'(swish_call/1).
+:- '$hide'(no_lco/0).
+
 		 /*******************************
 		 *	 ALLOW DEBUGGING	*
 		 *******************************/
@@ -104,3 +153,5 @@ term_html(Term, HTMlString) :-
 	sandbox:safe_primitive/1.
 
 sandbox:safe_primitive(system:trace).
+sandbox:safe_primitive(system:notrace).
+sandbox:safe_primitive(system:tracing).
