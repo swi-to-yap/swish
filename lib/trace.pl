@@ -86,8 +86,10 @@ trace_action(continue, _Port, Frame, continue) :-
 trace_action(continue, Port, _, skip) :-
 	box_enter(Port), !.
 trace_action(continue, _, _, continue).
-trace_action(skip,     _, _, skip).
 trace_action(nodebug,  _, _, nodebug).
+trace_action(skip,     _, _, skip).
+trace_action(retry,    _, _, retry).
+trace_action(up   ,    _, _, up).
 trace_action(abort,    _, _, abort).
 
 box_enter(call).

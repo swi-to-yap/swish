@@ -427,7 +427,10 @@ define([ "jquery", "config", "preferences",
       }
 
       function button(label, action) {
-	var btn = $.el.button(label);
+	var btn = $.el.button({class:action,
+			       title:label
+			      },
+			      $.el.span(label));
 	$(btn).on("click", function(ev) {
 	  data.pengine.respond(action);
 	  $(ev.target).parent().remove();
@@ -445,10 +448,12 @@ define([ "jquery", "config", "preferences",
 			 goal));
       addAnswer(this,
 		$.el.div({class:"trace-buttons"},
-			 button("Creep", "continue"),
-			 button("Skip", "skip"),
-			 button("No debug", "nodebug"),
-			 button("Abort", "abort")));
+			 button("Continue",  "nodebug"),
+			 button("Step into", "continue"),
+			 button("Step over", "skip"),
+			 button("Step out",  "up"),
+			 button("Retry",     "retry"),
+			 button("Abort",     "abort")));
       this.prologRunner('setState', "wait-debug");
     },
 
