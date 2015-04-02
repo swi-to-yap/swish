@@ -134,15 +134,17 @@ term_html(Term, HTMlString) :-
 :- meta_predicate swish_call(0).
 
 '$swish wrapper'(Goal) :-
-	call_cleanup(swish_call(Goal), Det=true),
+	swish_call(Goal),
+	deterministic(Det),
 	(   tracing,
-	    var(Det)
-	->  (   notrace
+	    Det == false
+	->  (   notrace,
+	        debug(trace, 'Saved tracer', [])
 	    ;	debug(trace, 'Restoring tracer', []),
 	        trace,
 		fail
 	    )
-	;   true
+	;   notrace
 	).
 
 swish_call(Goal) :-
@@ -164,3 +166,4 @@ no_lco.
 sandbox:safe_primitive(system:trace).
 sandbox:safe_primitive(system:notrace).
 sandbox:safe_primitive(system:tracing).
+sandbox:safe_primitive(system:deterministic(_)).
