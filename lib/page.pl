@@ -159,20 +159,19 @@ source_option(_, Options, Options).
 
 
 source_data(PathInfo, Code, [title(Title), type(Ext)]) :-
-	sub_atom(PathInfo, B, _, A, /),
-	sub_atom(PathInfo, 0, B, _, Alias),
-	sub_atom(PathInfo, _, A, 0, File),
-	catch(swish_config:source_alias(Alias), E,
-	      (print_message(warning, E), fail)),	
-        get_storage_plugin_data(Alias, File, Code),
-        file_name_extension(Title, Ext, File).
+	directory_file_path(Alias,File,PathInfo),
+        file_name_extension(Title, Ext, File),
+        get_storage_plugin_data(Alias, File, Code).
 
 
 get_storage_plugin_data(Alias, File, Code):- 
         % ensure [encoding(utf8)] perhaps
-        swish_hooks:storage_plugin_data(Alias, File, Code, _),!.
+        catch(swish_hooks:storage_plugin_data(Alias, File, Code, _), E,
+              (print_message(warning, E), fail)),!.
 get_storage_plugin_data(Alias, File, Code):-
-        Spec =.. [Alias,File],
+        catch(swish_config:source_alias(Alias), E,
+              (print_message(warning, E), fail)),
+	Spec =.. [Alias,File],
 	http_safe_file(Spec, []),
 	absolute_file_name(Spec, Path,
 			   [ access(read),
@@ -181,8 +180,7 @@ get_storage_plugin_data(Alias, File, Code):-
 	setup_call_cleanup(
 	    open(Path, read, In, [encoding(utf8)]),
 	    read_string(In, _, Code),
-	    close(In)).
-	
+	    close(In)),!.	
 
 %%	serve_resource(+Request) is semidet.
 %
