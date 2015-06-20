@@ -55,8 +55,9 @@
 :- use_module(library(debug)).
 :- use_module(library(dcg/basics)).
 
-
-is_gitty_path(DirIn,NameIn,DirOut,NameOut):- directory_file_path(DirIn,NameIn,PathInfo),directory_file_path(DirOut,NameOut,PathInfo).
+is_gitty_path(DirIn,NameIn,DirOut,NameOut):- 
+   DirIn= storage,
+   directory_file_path(DirIn,NameIn,PathInfo),directory_file_path(DirOut,NameOut,PathInfo).
 
 :- if(exists_source(swish_hooks)).
 :- include(swish_hooks).
@@ -71,6 +72,7 @@ swish_hooks:storage_plugin_load_source_data( PathInfo, Code, Options):- director
      is_gitty_path(DirStore,FName,Store,Name), gitty_data(Store, Name, Code, Options).
 
 :- endif.
+
 
 /** <module> Single-file GIT like version system
 
