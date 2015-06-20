@@ -27,23 +27,25 @@
     the GNU General Public License.
 */
 
-:- module(gitty,
-	  [ gitty_file/3,		% +Store, ?Name, ?Hash
-	    gitty_create/5,		% +Store, +Name, +Data, +Meta, -Commit
-	    gitty_update/5,		% +Store, +Name, +Data, +Meta, -Commit
-	    gitty_commit/3,		% +Store, +Name, -Meta
-	    gitty_data/4,		% +Store, +Name, -Data, -Meta
-	    gitty_history/4,		% +Store, +Name, -History, +Options
-	    gitty_scan/1,		% +Store
-	    gitty_rescan/1,		% ?Store
-	    gitty_hash/2,		% +Store, ?Hash
-	    gitty_reserved_meta/1,	% ?Key
+% Inital template (A copy of Gitty)
 
-	    gitty_diff/4,		% +Store, ?Start, +End, -Diff
+:- module(disk_filesystem,
+	  [ disk_filesystem_file/3,		% +Store, ?Name, ?Hash
+	    disk_filesystem_create/5,		% +Store, +Name, +Data, +Meta, -Commit
+	    disk_filesystem_update/5,		% +Store, +Name, +Data, +Meta, -Commit
+	    disk_filesystem_commit/3,		% +Store, +Name, -Meta
+	    disk_filesystem_data/4,		% +Store, +Name, -Data, -Meta
+	    disk_filesystem_history/4,		% +Store, +Name, -History, +Options
+	    disk_filesystem_scan/1,		% +Store
+	    disk_filesystem_rescan/1,		% ?Store
+	    disk_filesystem_hash/2,		% +Store, ?Hash
+	    disk_filesystem_reserved_meta/1,	% ?Key
+
+	    disk_filesystem_diff/4,		% +Store, ?Start, +End, -Diff
 
 	    data_diff/3,		% +String1, +String2, -Diff
 	    udiff_string/2,		% +Diff, -String
-            is_gitty_path/4             % +PathInfo, +FName, -Store, -Name
+            is_disk_filesystem_path/4             % +PathInfo, +FName, -Store, -Name
 	  ]).
 :- use_module(library(zlib)).
 :- use_module(library(filesex)).
@@ -56,19 +58,19 @@
 :- use_module(library(dcg/basics)).
 
 
-is_gitty_path(DirIn,NameIn,DirOut,NameOut):- directory_file_path(DirIn,NameIn,PathInfo),directory_file_path(DirOut,NameOut,PathInfo).
+is_disk_filesystem_path(DirIn,NameIn,DirOut,NameOut):- directory_file_path(DirIn,NameIn,PathInfo),directory_file_path(DirOut,NameOut,PathInfo).
 
 :- if(exists_source(swish_hooks)).
 :- include(swish_hooks).
-swish_hooks:storage_plugin_commit(DirStore, FName, Meta):- is_gitty_path(DirStore,FName,Store,Name), gitty_commit(Store, Name, Meta).
-swish_hooks:storage_plugin_create(DirStore, FName, Data, Meta, Commit):- is_gitty_path(DirStore,FName,Store,Name), gitty_create(Store, Name, Data, Meta, Commit).
-swish_hooks:storage_plugin_data(DirStore, FName, Data, Meta):- is_gitty_path(DirStore,FName,Store,Name), gitty_data(Store, Name, Data, Meta).
-swish_hooks:storage_plugin_history(DirStore, FName, History, Options):- is_gitty_path(DirStore,FName,Store,Name), gitty_history(Store, Name, History, Options).
-swish_hooks:storage_plugin_update(DirStore, FName, Data, Meta, Commit):- is_gitty_path(DirStore,FName,Store,Name), gitty_update(Store, Name, Data, Meta, Commit).
-swish_hooks:storage_plugin_file(DirStore, FName, Hash):- is_gitty_path(DirStore,FName,Store,Name), gitty_file(Store, Name, Hash).
-swish_hooks:storage_plugin_diff(DirStore, Start, End, Diff):- is_gitty_path(DirStore,_FName,Store,_Name), gitty_diff(Store, Start, End, Diff).    
+swish_hooks:storage_plugin_commit(DirStore, FName, Meta):- is_disk_filesystem_path(DirStore,FName,Store,Name), disk_filesystem_commit(Store, Name, Meta).
+swish_hooks:storage_plugin_create(DirStore, FName, Data, Meta, Commit):- is_disk_filesystem_path(DirStore,FName,Store,Name), disk_filesystem_create(Store, Name, Data, Meta, Commit).
+swish_hooks:storage_plugin_data(DirStore, FName, Data, Meta):- is_disk_filesystem_path(DirStore,FName,Store,Name), disk_filesystem_data(Store, Name, Data, Meta).
+swish_hooks:storage_plugin_history(DirStore, FName, History, Options):- is_disk_filesystem_path(DirStore,FName,Store,Name), disk_filesystem_history(Store, Name, History, Options).
+swish_hooks:storage_plugin_update(DirStore, FName, Data, Meta, Commit):- is_disk_filesystem_path(DirStore,FName,Store,Name), disk_filesystem_update(Store, Name, Data, Meta, Commit).
+swish_hooks:storage_plugin_file(DirStore, FName, Hash):- is_disk_filesystem_path(DirStore,FName,Store,Name), disk_filesystem_file(Store, Name, Hash).
+swish_hooks:storage_plugin_diff(DirStore, Start, End, Diff):- is_disk_filesystem_path(DirStore,_FName,Store,_Name), disk_filesystem_diff(Store, Start, End, Diff).    
 swish_hooks:storage_plugin_load_source_data( PathInfo, Code, Options):- directory_file_path(DirStore,FName,PathInfo),
-     is_gitty_path(DirStore,FName,Store,Name), gitty_data(Store, Name, Code, Options).
+     is_disk_filesystem_path(DirStore,FName,Store,Name), disk_filesystem_data(Store, Name, Code, Options).
 
 :- endif.
 
@@ -92,7 +94,7 @@ following fields are reserved for gitties bookkeeping:
   Hash of the previous commit.
 
 The key =commit= is reserved and returned   as  part of the meta-data of
-the newly created (gitty_create/5) or updated object (gitty_update/5).
+the newly created (disk_filesystem_create/5) or updated object (disk_filesystem_update/5).
 */
 
 :- dynamic
@@ -115,29 +117,29 @@ remote_sync(true).
 :- endif.
 
 
-%%	gitty_file(+Store, ?File, ?Head) is nondet.
+%%	disk_filesystem_file(+Store, ?File, ?Head) is nondet.
 %
-%	True when File entry in the  gitty   store  and Head is the HEAD
+%	True when File entry in the  disk_filesystem   store  and Head is the HEAD
 %	revision.
 
-gitty_file(Store, Head, Hash) :-
-	gitty_scan(Store),
+disk_filesystem_file(Store, Head, Hash) :-
+	disk_filesystem_scan(Store),
 	head(Store, Head, Hash).
 
-%%	gitty_create(+Store, +Name, +Data, +Meta, -Commit) is det.
+%%	disk_filesystem_create(+Store, +Name, +Data, +Meta, -Commit) is det.
 %
 %	Create a new object Name from Data and meta information.
 %
 %	@arg Commit is a dit describing the new Commit
 
-gitty_create(Store, Name, _Data, _Meta, _) :-
-	gitty_scan(Store),
+disk_filesystem_create(Store, Name, _Data, _Meta, _) :-
+	disk_filesystem_scan(Store),
 	head(Store, Name, _), !,
-	throw(error(gitty(file_exists(Name)),_)).
-gitty_create(Store, Name, Data, Meta, CommitRet) :-
+	throw(error(disk_filesystem(file_exists(Name)),_)).
+disk_filesystem_create(Store, Name, Data, Meta, CommitRet) :-
 	save_object(Store, Data, blob, Hash),
 	get_time(Now),
-	Commit = gitty{}.put(Meta)
+	Commit = disk_filesystem{}.put(Meta)
 		        .put(_{ name:Name,
 				time:Now,
 				data:Hash
@@ -145,26 +147,26 @@ gitty_create(Store, Name, Data, Meta, CommitRet) :-
 	format(string(CommitString), '~q.~n', [Commit]),
 	save_object(Store, CommitString, commit, CommitHash),
 	CommitRet = Commit.put(commit, CommitHash),
-	catch(gitty_update_head(Store, Name, -, CommitHash),
+	catch(disk_filesystem_update_head(Store, Name, -, CommitHash),
 	      E,
 	      ( delete_object(Store, CommitHash),
 		throw(E))).
 
-%%	gitty_update(+Store, +Name, +Data, +Meta, -Commit) is det.
+%%	disk_filesystem_update(+Store, +Name, +Data, +Meta, -Commit) is det.
 %
 %	Update document Name using Data and the given meta information
 
-gitty_update(Store, Name, Data, Meta, CommitRet) :-
-	gitty_scan(Store),
+disk_filesystem_update(Store, Name, Data, Meta, CommitRet) :-
+	disk_filesystem_scan(Store),
 	head(Store, Name, OldHead),
 	(   _{previous:OldHead} >:< Meta
 	->  true
-	;   throw(error(gitty(commit_version(OldHead, Meta.previous)), _))
+	;   throw(error(disk_filesystem(commit_version(OldHead, Meta.previous)), _))
 	),
 	load_plain_commit(Store, OldHead, OldMeta),
 	get_time(Now),
 	save_object(Store, Data, blob, Hash),
-	Commit = gitty{}.put(OldMeta)
+	Commit = disk_filesystem{}.put(OldMeta)
 		        .put(Meta)
 		        .put(_{ name:Name,
 				time:Now,
@@ -174,34 +176,34 @@ gitty_update(Store, Name, Data, Meta, CommitRet) :-
 	format(string(CommitString), '~q.~n', [Commit]),
 	save_object(Store, CommitString, commit, CommitHash),
 	CommitRet = Commit.put(commit, CommitHash),
-	catch(gitty_update_head(Store, Name, OldHead, CommitHash),
+	catch(disk_filesystem_update_head(Store, Name, OldHead, CommitHash),
 	      E,
 	      ( delete_object(Store, CommitHash),
 		throw(E))).
 
-%%	gitty_data(+Store, +NameOrHash, -Data, -Meta) is semidet.
+%%	disk_filesystem_data(+Store, +NameOrHash, -Data, -Meta) is semidet.
 %
 %	Get the data in object Name and its meta-data
 
-gitty_data(Store, Name, Data, Meta) :-
-	gitty_scan(Store),
+disk_filesystem_data(Store, Name, Data, Meta) :-
+	disk_filesystem_scan(Store),
 	head(Store, Name, Head), !,
 	load_commit(Store, Head, Meta),
 	load_object(Store, Meta.data, Data).
-gitty_data(Store, Hash, Data, Meta) :-
+disk_filesystem_data(Store, Hash, Data, Meta) :-
 	load_commit(Store, Hash, Meta),
 	load_object(Store, Meta.data, Data).
 
-%%	gitty_commit(+Store, +NameOrHash, -Meta) is semidet.
+%%	disk_filesystem_commit(+Store, +NameOrHash, -Meta) is semidet.
 %
 %	True if Meta holds the commit data of NameOrHash. A key =commit=
 %	is added to the meta-data to specify the commit hash.
 
-gitty_commit(Store, Name, Meta) :-
-	gitty_scan(Store),
+disk_filesystem_commit(Store, Name, Meta) :-
+	disk_filesystem_scan(Store),
 	head(Store, Name, Head), !,
 	load_commit(Store, Head, Meta).
-gitty_commit(Store, Hash, Meta) :-
+disk_filesystem_commit(Store, Hash, Meta) :-
 	load_commit(Store, Hash, Meta).
 
 load_commit(Store, Hash, Meta) :-
@@ -216,7 +218,7 @@ load_plain_commit(Store, Hash, Meta) :-
 	load_object(Store, Hash, String),
 	term_string(Meta, String, []).
 
-%%	gitty_history(+Store, +NameOrHash, -History, +Options) is det.
+%%	disk_filesystem_history(+Store, +NameOrHash, -History, +Options) is det.
 %
 %	History is a list of dicts representating the history of Name in
 %	Store.  Options:
@@ -229,7 +231,7 @@ load_plain_commit(Store, Hash, Meta) :-
 %	  history includes the entry with HASH an (depth+1)//2 entries
 %	  after the requested HASH.
 
-gitty_history(Store, Name, History, Options) :-
+disk_filesystem_history(Store, Name, History, Options) :-
 	history_hash_start(Store, Name, Hash0),
 	option(depth(Depth), Options, 5),
 	(   option(includes(Hash), Options)
@@ -243,7 +245,7 @@ gitty_history(Store, Name, History, Options) :-
 	).
 
 history_hash_start(Store, Name, Hash) :-
-	gitty_scan(Store),
+	disk_filesystem_scan(Store),
 	head(Store, Name, Head), !,
 	Hash = Head.
 history_hash_start(_, Hash, Hash).
@@ -349,53 +351,53 @@ read_hdr(C, In, [C|T]) :-
 	read_hdr(C1, In, T).
 read_hdr(_, _, []).
 
-%%	gitty_rescan(?Store) is det.
+%%	disk_filesystem_rescan(?Store) is det.
 %
 %	Update our view of the shared   storage  for all stores matching
 %	Store.
 
-gitty_rescan(Store) :-
+disk_filesystem_rescan(Store) :-
 	retractall(store(Store, _)).
 
-%%	gitty_scan(+Store) is det.
+%%	disk_filesystem_scan(+Store) is det.
 %
-%	Scan gitty store for files (entries),   filling  head/3. This is
+%	Scan disk_filesystem store for files (entries),   filling  head/3. This is
 %	performed lazily at first access to the store.
 %
 %	@tdb	Possibly we need to maintain a cached version of this
-%		index to avoid having to open all objects of the gitty
+%		index to avoid having to open all objects of the disk_filesystem
 %		store.
 
-gitty_scan(Store) :-
+disk_filesystem_scan(Store) :-
 	store(Store, _), !,
 	(   remote_sync(true)
-	->  with_mutex(gitty, remote_updates(Store))
+	->  with_mutex(disk_filesystem, remote_updates(Store))
 	;   true
 	).
-gitty_scan(Store) :-
-	with_mutex(gitty, gitty_scan_sync(Store)).
+disk_filesystem_scan(Store) :-
+	with_mutex(disk_filesystem, disk_filesystem_scan_sync(Store)).
 
 :- thread_local
 	latest/3.
 
-gitty_scan_sync(Store) :-
+disk_filesystem_scan_sync(Store) :-
 	store(Store, _), !.
-gitty_scan_sync(Store) :-
-	gitty_scan_latest(Store),
+disk_filesystem_scan_sync(Store) :-
+	disk_filesystem_scan_latest(Store),
 	forall(retract(latest(Name, Hash, _Time)),
 	       assert(head(Store, Name, Hash))),
 	get_time(Now),
 	assertz(store(Store, Now)).
 
-%%	gitty_scan_latest(+Store)
+%%	disk_filesystem_scan_latest(+Store)
 %
-%	Scans the gitty store, extracting  the   latest  version of each
+%	Scans the disk_filesystem store, extracting  the   latest  version of each
 %	named entry.
 
-gitty_scan_latest(Store) :-
+disk_filesystem_scan_latest(Store) :-
 	retractall(head(Store, _, _)),
 	retractall(latest(_, _, _)),
-	(   gitty_hash(Store, Hash),
+	(   disk_filesystem_hash(Store, Hash),
 	    load_object(Store, Hash, Data, commit, _Size),
 	    term_string(Meta, Data, []),
 	    _{name:Name, time:Time} :< Meta,
@@ -410,11 +412,11 @@ gitty_scan_latest(Store) :-
 	).
 
 
-%%	gitty_hash(+Store, ?Hash) is nondet.
+%%	disk_filesystem_hash(+Store, ?Hash) is nondet.
 %
 %	True when Hash is an object in the store.
 
-gitty_hash(Store, Hash) :-
+disk_filesystem_hash(Store, Hash) :-
 	var(Hash), !,
 	access_file(Store, exist),
 	directory_files(Store, Level0),
@@ -431,7 +433,7 @@ gitty_hash(Store, Hash) :-
 	member(File, Files),
 	atom_length(File, 36),
 	atomic_list_concat([E0,E1,File], Hash).
-gitty_hash(Store, Hash) :-
+disk_filesystem_hash(Store, Hash) :-
 	hash_file(Store, Hash, File),
 	exists_file(File).
 
@@ -449,56 +451,56 @@ hash_file(Store, Hash, Path) :-
 	sub_atom(Hash, 4, _, 0, File),
 	atomic_list_concat([Store, Dir0, Dir1, File], /, Path).
 
-%%	gitty_reserved_meta(?Key) is nondet.
+%%	disk_filesystem_reserved_meta(?Key) is nondet.
 %
-%	True when Key is a gitty reserved key for the commit meta-data
+%	True when Key is a disk_filesystem reserved key for the commit meta-data
 
-gitty_reserved_meta(name).
-gitty_reserved_meta(time).
-gitty_reserved_meta(data).
-gitty_reserved_meta(previous).
+disk_filesystem_reserved_meta(name).
+disk_filesystem_reserved_meta(time).
+disk_filesystem_reserved_meta(data).
+disk_filesystem_reserved_meta(previous).
 
 
 		 /*******************************
 		 *	      SYNCING		*
 		 *******************************/
 
-%%	gitty_update_head(+Store, +Name, +OldCommit, +NewCommit) is det.
+%%	disk_filesystem_update_head(+Store, +Name, +OldCommit, +NewCommit) is det.
 %
-%	Update the head of a gitty  store   for  Name.  OldCommit is the
+%	Update the head of a disk_filesystem  store   for  Name.  OldCommit is the
 %	current head and NewCommit is the new  head. If Name is created,
 %	and thus there is no head, OldCommit must be `-`.
 %
 %	This operation can fail because another   writer has updated the
 %	head.  This can both be in-process or another process.
 
-gitty_update_head(Store, Name, OldCommit, NewCommit) :-
-	with_mutex(gitty,
-		   gitty_update_head_sync(Store, Name, OldCommit, NewCommit)).
+disk_filesystem_update_head(Store, Name, OldCommit, NewCommit) :-
+	with_mutex(disk_filesystem,
+		   disk_filesystem_update_head_sync(Store, Name, OldCommit, NewCommit)).
 
-gitty_update_head_sync(Store, Name, OldCommit, NewCommit) :-
+disk_filesystem_update_head_sync(Store, Name, OldCommit, NewCommit) :-
 	remote_sync(true), !,
 	setup_call_cleanup(
 	    heads_output_stream(Store, HeadsOut),
-	    gitty_update_head_sync(Store, Name, OldCommit, NewCommit, HeadsOut),
+	    disk_filesystem_update_head_sync(Store, Name, OldCommit, NewCommit, HeadsOut),
 	    close(HeadsOut)).
-gitty_update_head_sync(Store, Name, OldCommit, NewCommit) :-
-	gitty_update_head_sync2(Store, Name, OldCommit, NewCommit).
+disk_filesystem_update_head_sync(Store, Name, OldCommit, NewCommit) :-
+	disk_filesystem_update_head_sync2(Store, Name, OldCommit, NewCommit).
 
-gitty_update_head_sync(Store, Name, OldCommit, NewCommit, HeadsOut) :-
-	gitty_update_head_sync2(Store, Name, OldCommit, NewCommit),
+disk_filesystem_update_head_sync(Store, Name, OldCommit, NewCommit, HeadsOut) :-
+	disk_filesystem_update_head_sync2(Store, Name, OldCommit, NewCommit),
 	format(HeadsOut, '~q.~n', [head(Name, OldCommit, NewCommit)]).
 
-gitty_update_head_sync2(Store, Name, OldCommit, NewCommit) :-
-	gitty_scan(Store),		% fetch remote changes
+disk_filesystem_update_head_sync2(Store, Name, OldCommit, NewCommit) :-
+	disk_filesystem_scan(Store),		% fetch remote changes
 	(   OldCommit == (-)
 	->  (   head(Store, Name, _)
-	    ->	throw(error(gitty(file_exists(Name),_)))
+	    ->	throw(error(disk_filesystem(file_exists(Name),_)))
 	    ;	assertz(head(Store, Name, NewCommit))
 	    )
 	;   (   retract(head(Store, Name, OldCommit))
 	    ->	assertz(head(Store, Name, NewCommit))
-	    ;	throw(error(gitty(not_at_head(Name, OldCommit)), _))
+	    ;	throw(error(disk_filesystem(not_at_head(Name, OldCommit)), _))
 	    )
 	).
 
@@ -565,7 +567,7 @@ heads_file(Store, HeadsFile) :-
 :- multifile
 	prolog:error_message//1.
 
-prolog:error_message(gitty(not_at_head(Name, _OldCommit))) -->
+prolog:error_message(disk_filesystem(not_at_head(Name, _OldCommit))) -->
 	[ 'Gitty: cannot update head for "~w" because it was \c
 	   updated by someone else'-[Name] ].
 
@@ -574,7 +576,7 @@ prolog:error_message(gitty(not_at_head(Name, _OldCommit))) -->
 		 *	       DIFF		*
 		 *******************************/
 
-%%	gitty_diff(+Store, ?Hash1, +FileOrHash2, -Dict) is det.
+%%	disk_filesystem_diff(+Store, ?Hash1, +FileOrHash2, -Dict) is det.
 %
 %	True if Dict representeds the changes   in Hash1 to FileOrHash2.
 %	If Hash1 is unbound,  it  is   unified  with  the  `previous` of
@@ -590,13 +592,13 @@ prolog:error_message(gitty(not_at_head(Name, _OldCommit))) -->
 %	  - tags:_{added:AddedTags, deleted:DeletedTags}
 %	  If tags have changed, the added and deleted ones.
 
-gitty_diff(Store, C1, C2, Dict) :-
-	gitty_data(Store, C2, Data2, Meta2),
+disk_filesystem_diff(Store, C1, C2, Dict) :-
+	disk_filesystem_data(Store, C2, Data2, Meta2),
 	(   var(C1)
 	->  C1 = Meta2.get(previous)
 	;   true
 	), !,
-	gitty_data(Store, C1, Data1, Meta1),
+	disk_filesystem_data(Store, C1, Data1, Meta1),
 	Pairs = [ from-Meta1, to-Meta2|_],
 	(   Data1 \== Data2
 	->  udiff_string(Data1, Data2, UDIFF),
@@ -613,7 +615,7 @@ gitty_diff(Store, C1, C2, Dict) :-
 	),
 	once(length(Pairs,_)),			% close list
 	dict_pairs(Dict, json, Pairs).
-gitty_diff(_Store, '0000000000000000000000000000000000000000', _C2,
+disk_filesystem_diff(_Store, '0000000000000000000000000000000000000000', _C2,
 	   json{initial:true}).
 
 

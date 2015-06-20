@@ -40,8 +40,18 @@
 :- use_module(library(option)).
 :- use_module(library(debug)).
 
+:- if(exists_source(swish_hooks)).
+:- include(swish_hooks).
+:- endif.
+
 :- use_module(page).
+
 :- use_module(gitty).
+
+:- if(exists_source(disk_filesystem)).
+:- use_module(disk_filesystem).
+:- endif.
+
 :- use_module(config).
 
 /** <module> Store files on behalve of web clients
@@ -100,8 +110,8 @@ storage(post, Request) :-
 	meta_data(Request, Dir, Dict, Meta),
 	(   atom_string(Base, Dict.get(meta).get(name))
 	->  file_name_extension(Base, Type, File),
-	    (	catch(gitty_create(Dir, File, Data, Meta, Commit),
-		      error(gitty(file_exists(File)),_),
+	    (	catch(swish_hooks:storage_plugin_create(Dir, File, Data, Meta, Commit),
+		      error(storage_plugin(file_exists(File)),_),
 		      fail)
 	    ->	true
 	    ;	Error = json{error:file_exists,
@@ -110,8 +120,8 @@ storage(post, Request) :-
 	;   (   repeat,
 	        random_filename(Base),
 		file_name_extension(Base, Type, File),
-		catch(gitty_create(Dir, File, Data, Meta, Commit),
-		      error(gitty(file_exists(File)),_),
+		catch(swish_hooks:storage_plugin_create(Dir, File, Data, Meta, Commit),
+		      error(storage_plugin(file_exists(File)),_),
 		      fail)
 	    ->  true
 	    )
@@ -131,12 +141,12 @@ storage(put, Request) :-
 	setting(directory, Dir),
 	request_file(Request, Dir, File),
 	(   Dict.get(update) == "meta-data"
-	->  gitty_data(Dir, File, Data, _OldMeta)
+	->  swish_hooks:storage_plugin_data(Dir, File, Data, _OldMeta)
 	;   option(data(Data), Dict, "")
 	),
 	meta_data(Request, Dict, Meta),
 	storage_url(File, URL),
-	gitty_update(Dir, File, Data, Meta, Commit),
+	swish_hooks:storage_plugin_update(Dir, File, Data, Meta, Commit),
 	debug(storage, 'Updated: ~p', [Commit]),
 	reply_json_dict(json{url:URL,
 			     file:File,
@@ -146,13 +156,13 @@ storage(delete, Request) :-
 	authentity(Request, Meta),
 	setting(directory, Dir),
 	request_file(Request, Dir, File),
-	gitty_update(Dir, File, "", Meta, _New),
+	swish_hooks:storage_plugin_update(Dir, File, "", Meta, _New),
 	reply_json_dict(true).
 
 request_file(Request, Dir, File) :-
 	option(path_info(PathInfo), Request),
 	atom_concat(/, File, PathInfo),
-	(   gitty_file(Dir, File, _Hash)
+	(   swish_hooks:storage_plugin_file(Dir, File, _Hash)
 	->  true
 	;   http_404([], Request)
 	).
@@ -177,7 +187,7 @@ meta_data(Request, Store, Dict, Meta) :-
 	meta_data(Request, Dict, Meta1),
 	(   atom_string(Previous, Dict.get(previous)),
 	    is_sha1(Previous),
-	    gitty_commit(Store, Previous, _PrevMeta)
+	    swish_hooks:storage_plugin_commit(Store, Previous, _PrevMeta)
 	->  Meta = Meta1.put(previous, Previous)
 	;   Meta = Meta1
 	).
@@ -231,30 +241,30 @@ storage_get(Request, Format) :-
 	storage_get(Format, Dir, Type, FileOrHash, Request).
 
 storage_get(swish, Dir, _, FileOrHash, Request) :-
-	gitty_data(Dir, FileOrHash, Code, Meta),
+	swish_hooks:storage_plugin_data(Dir, FileOrHash, Code, Meta),
 	swish_reply([code(Code),file(FileOrHash),meta(Meta)], Request).
 storage_get(raw, Dir, _, FileOrHash, _Request) :-
-	gitty_data(Dir, FileOrHash, Code, Meta),
+	swish_hooks:storage_plugin_data(Dir, FileOrHash, Code, Meta),
 	file_mime_type(Meta.name, MIME),
 	format('Content-type: ~w~n~n', [MIME]),
 	format('~s', [Code]).
 storage_get(json, Dir, _, FileOrHash, _Request) :-
-	gitty_data(Dir, FileOrHash, Code, Meta),
+	swish_hooks:storage_plugin_data(Dir, FileOrHash, Code, Meta),
 	reply_json_dict(json{data:Code, meta:Meta}).
 storage_get(history(Depth, Includes), Dir, _, File, _Request) :-
-	gitty_history(Dir, File, History, [depth(Depth),includes(Includes)]),
+	swish_hooks:storage_plugin_history(Dir, File, History, [depth(Depth),includes(Includes)]),
 	reply_json_dict(History).
 storage_get(history(Depth), Dir, _, File, _Request) :-
-	gitty_history(Dir, File, History, [depth(Depth)]),
+	swish_hooks:storage_plugin_history(Dir, File, History, [depth(Depth)]),
 	reply_json_dict(History).
 storage_get(diff(RelTo), Dir, _, File, _Request) :-
-	gitty_diff(Dir, RelTo, File, Diff),
+	swish_hooks:storage_plugin_diff(Dir, RelTo, File, Diff),
 	reply_json_dict(Diff).
 
 request_file_or_hash(Request, Dir, FileOrHash, Type) :-
 	option(path_info(PathInfo), Request),
 	atom_concat(/, FileOrHash, PathInfo),
-	(   gitty_file(Dir, FileOrHash, _Hash)
+	(   swish_hooks:storage_plugin_file(Dir, FileOrHash, _Hash)
 	->  Type = file
 	;   is_sha1(FileOrHash)
 	->  Type = hash
@@ -329,8 +339,8 @@ random_char(Char) :-
 
 swish_search:typeahead(file, Query, FileInfo) :-
 	setting(directory, Dir),
-	gitty_file(Dir, File, Head),
-	gitty_commit(Dir, Head, Meta),
+	swish_hooks:storage_plugin_file(Dir, File, Head),
+	swish_hooks:storage_plugin_commit(Dir, Head, Meta),
 	Meta.get(public) == true,
 	(   sub_atom(File, 0, _, _, Query) % find only public
 	->  true
