@@ -22,7 +22,7 @@ For example:
 
 ```{prolog}
 ?- [library(pengines)].
-?- pengine_rpc('http://swish.swi-prolog.org',
+?- pengine_rpc('http://cplint.lamping.unife.it',
 	       sin_table(X,Y),
 	       [ src_text(':- include(sin_table).'),
 		 application(swish)
@@ -41,3 +41,16 @@ The Pengines infrastructure is  designed  to   make  JavaScript  talk to
 Prolog servers. The file   [sin-table.html](sin-table.html)  illustrates
 this.
 
+There an __NPM__ [package](https://www.npmjs.com/package/pengines)
+
+## Extracting results using Java
+
+Check out [JavaPengines](https://github.com/Anniepoo/JavaPengine)
+
+## Extracting results using Ruby
+
+Check out [RubyPengines](https://github.com/simularity/RubyPengine)
+
+---
+If you write or find another client, please make a pull request for this
+page!

@@ -58,6 +58,17 @@ var tabbed = {
 	elem.on("trace-location", function(ev, prompt) {
 	  elem.tabbed('showTracePort', prompt);
 	});
+	elem.on("data-is-clean", function(ev, clean) {
+	  var tab = $(ev.target).closest(".tab-pane");
+	  var a   = elem.tabbed('navTab', tab.attr('id'));
+
+	  if ( a )
+	  { if ( clean )
+	      a.removeClass("data-dirty");
+	    else
+	      a.addClass("data-dirty");
+	  }
+	});
       });
     },
 
@@ -154,15 +165,26 @@ var tabbed = {
     },
 
     /**
-     * Add a new tab from the provided source
+     * Add a new tab from the provided source.  If there is a _select_
+     * (new) tab, open the data in this tab.
      */
     tabFromSource: function(src) {
-      var tab = this.tabbed('newTab', $("<span></span>"));
-      if ( typeof(src) == "object" )
-	delete src.newTab;
-      if ( !this.tabbed('setSource', tab, src) ) {
-	this.tabbed('removeTab', tab.attr("id"));
+      var select = this.find("div.tabbed-select");
+      if ( select.length > 0 ) {
+	var tab = $(select[0]).closest(".tab-pane");
+	this.tabbed('show', tab.attr("id"));
+	if ( typeof(src) == "object" )
+	  delete src.newTab;
+	this.tabbed('setSource', tab, src);
+      } else {
+	var tab = this.tabbed('newTab', $("<span></span>"));
+	if ( typeof(src) == "object" )
+	  delete src.newTab;
+	if ( !this.tabbed('setSource', tab, src) ) {
+	  this.tabbed('removeTab', tab.attr("id"));
+	}
       }
+
       return this;
     },
 
@@ -316,8 +338,8 @@ var tabbed = {
      * @param {String} id is the id of the tab to show.
      */
     show: function(id) {
-      var a = this.tabbed('navTabs').find("a[data-id='"+id+"']");
-      if ( a.length > 0 ) {
+      var a = this.tabbed('navTab', id);
+      if ( a ) {
 	a.tab('show');
 	return this;
       }
@@ -343,6 +365,8 @@ var tabbed = {
 
       var a1 = $.el.a({class:"compact", href:"#"+id, "data-id":id},
 		      $.el.span({class:"tab-icon type-icon "+type}),
+		      $.el.span({class:"tab-dirty",
+		                 title:"Tab is modified.  See File/Save and Edit/View changes"}),
 		      $.el.span({class:"tab-title"}, label),
 		      close_button);
       var li = $.el.li({role:"presentation"}, a1);
@@ -358,6 +382,14 @@ var tabbed = {
      */
     title: function(title, type) {
       var tab    = this.closest(".tab-pane");
+
+      /* if no tab, we might be in fullscreen mode */
+      if ( tab.length == 0 ) {
+	fsorg = this.data("fullscreen_origin");
+	if ( fsorg )
+	  tab = $(fsorg).closest(".tab-pane");
+      }
+
       var tabbed = tab.closest(".tabbed");
       var id     = tab.attr("id");
       var ul	 = tabbed.tabbed('navTabs');
@@ -445,10 +477,10 @@ var tabbed = {
       });
       $(g).on("source", function(ev, src) {
 	var tab = $(ev.target).closest(".tab-pane");
-	if ( tab.is(":visible") &&
-	     tab.closest(".tabbed").tabbed('setSource', tab, src) ) {
-	  ev.stopPropagation();
-	}
+	ev.stopPropagation();
+	if ( tab.is(":visible") )
+	  tab.closest(".tabbed").tabbed('setSource', tab, src);
+	return false;
       });
 /*
       $(g).on("profile-selected", function(ev, profile) {
@@ -542,6 +574,12 @@ var tabbed = {
      */
     navTabs: function() {
       return this.find("ul.nav-tabs").first();
+    },
+
+    navTab: function(id) {
+      var a = this.find("ul.nav-tabs").first().find("a[data-id='"+id+"']");
+      if ( a.length > 0 )
+	return a;
     },
 
     navContent: function() {

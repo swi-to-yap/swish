@@ -63,6 +63,7 @@ _not_ see exactly the same UI for cooperation.  What about
 	  - Save, clearing name.
     - Indicate branch points in history?
       - Requires complete graph in memory.
+  - Re-map Control-S (google-docs ignores save)
 
 ## Login
 
@@ -88,7 +89,6 @@ _not_ see exactly the same UI for cooperation.  What about
   - Debug (trace) through included files
     - Works, except for following the source.
   - Deal with files/line numbers over multiple files
-  - Jump to source for goals.
   - Staging
     Control-S (whatever) saves data to `staging area'.
     - In addition to HEAD, introduce STAGE (gitty solution)?
@@ -100,8 +100,11 @@ _not_ see exactly the same UI for cooperation.  What about
 ## Notebooks
 
   - Save notebook/program as new profile?
+  - Collapsible sections?
+  - Move sections (or select multiple)
+  - Delete query from menu?  Better: undo for delete.
 
-## SWISH as Prolog frontenda for local usage
+## SWISH as Prolog frontend for local usage
 
   - Deal with login
     - Limit to localhost.  Proposed by Douglas Miles:
@@ -135,5 +138,4 @@ _not_ see exactly the same UI for cooperation.  What about
     - use_module/2
     - ?- [file].
     - :- op(1150, fx, [(mode), (public)]).
-  - Load for tabbed search does not associate file history.
 

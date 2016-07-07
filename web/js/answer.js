@@ -198,9 +198,11 @@ define([ "jquery", "laconic" ],
    */
   function evalScripts(elem) {
     elem.find("script").each(function() {
-      if ( this.getAttribute('type') == "text/javascript" )
+      var type = this.getAttribute('type')||"text/javascript";
+      if ( type == "text/javascript" ) {
 	$.ajaxScript = $(this);
 	eval(this.textContent);
+      }
     });
     if ( $.ajaxScript )
       delete $.ajaxScript;
@@ -417,6 +419,10 @@ define([ "jquery", "laconic" ],
       var ext   = "html";
       var data;
 
+      function aSupportsDownload() {
+	return $("<a>")[0].download != undefined;
+      }
+
       if ( node.hasClass("export-dom") ) {
 	var r = {};
 	node = node.trigger("export-dom", r);
@@ -438,6 +444,9 @@ define([ "jquery", "laconic" ],
 	data = node.html();
 	type = "text/html";
       }
+
+      if ( !aSupportsDownload() )
+	type = "application/octet-stream";
 
       var href	= "data:"+type+";charset=UTF-8,"
 		+ encodeURIComponent(data);

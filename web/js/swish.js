@@ -23,6 +23,7 @@ require.config({
     c3:          "../bower_components/c3/c3",
     d3:          "../bower_components/d3/d3",
     "svg-pan-zoom": "../bower_components/svg-pan-zoom/dist/svg-pan-zoom.min",
+    sparkline:	 "../bower_components/sparkline/dist/jquery.sparkline",
 
 					/* CodeMirror extensions */
     "cm/mode/prolog": "codemirror/mode/prolog",
@@ -53,12 +54,19 @@ require.config({
   }
 }); //require.config
 
+/*
+ * Create the SWISH application.  Note that we need two levels of
+ * require because the first gives us the location of the pengine
+ * API, while the second fetches the pengines and starts the
+ * application.
+ */
 require(["jquery", "config", "jswish"],
 	function($, config, swish) {
-
-$(function() {
-  $("body").swish(config.swish||{});
-}); //$();
-
-}); // require
+  require([config.http.locations.pengines+"/pengines.js"],
+	  function() {
+    $(function() {
+      $("body").swish(config.swish||{});
+    });
+  });
+});
 

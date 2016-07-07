@@ -9,8 +9,8 @@
  * @requires jquery
  */
 
-define([ "jquery", "config", "laconic", "tagmanager" ],
-       function($, config) {
+define([ "jquery", "config", "modal", "laconic", "tagmanager" ],
+       function($, config, modal) {
   var form = {
     /**
      * Serialize a form as an object. The following normalizations are
@@ -66,6 +66,46 @@ define([ "jquery", "config", "laconic", "tagmanager" ],
       });
 
       return obj;
+    },
+
+    /**
+     * Provide feedback about problems with form elements
+     * @param form is the form to decorate
+     * @param error is a pengine error message created by lib/form.pl
+     */
+
+    formError: function(formel, error) {
+      formel.find(".has-error").removeClass("has-error");
+      formel.find(".help-block.with-errors").remove();
+
+      if ( error ) {
+	if ( error.code == "form_error" || error.code == "input_error" ) {
+	  errors = error.data.split("\n");
+	  for(var i=0; i<errors.length; i++) {
+	    var el = errors[i].split(/:\s*(.*)?/);
+
+	    form.fieldError(formel, el[0], el[1]);
+	  }
+	} else
+	{ modal.alert(error.data);
+	}
+      }
+    },
+
+    fieldError: function(form, field, msg) {
+      var input = form.find("input[name="+field+"]");
+
+      if ( input.length > 0 ) {
+	var group = input.closest(".form-group");
+
+	if ( input.parent().hasClass("input-group") )
+	  input = input.parent();
+
+	group.addClass("has-error");
+	input.after($.el.p({class:"help-block with-errors"}, msg));
+      } else
+      { alert("Missing value for "+field);
+      }
     },
 
     showDialog: function(data) {
@@ -264,6 +304,30 @@ define([ "jquery", "config", "laconic", "tagmanager" ],
 					     { title:"Initial number of solutions",
 					       type:"number",
 					       value:value}))));
+	return elem;
+      },
+
+      name: function(name, col) {
+	col = col||3;
+	var elem =
+	$.el.div({class:"form-group"},
+		 label("name", "Name", col),
+		 $.el.div({class:"col-xs-"+(12-col)},
+			  textInput("name",
+				    {placeholder:"Name",
+				     value:name})));
+	return elem;
+      },
+
+      filename: function(name, col) {
+	col = col||3;
+	var elem =
+	$.el.div({class:"form-group"},
+		 label("filename", "File name", col),
+		 $.el.div({class:"col-xs-"+(12-col)},
+			  textInput("filename",
+				    {placeholder:"File name",
+				     value:name})));
 	return elem;
       },
 

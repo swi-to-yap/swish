@@ -72,23 +72,28 @@ define([ "jquery", "config", "preferences", "cm/lib/codemirror",
 				}
 		              });
 
-	if ( typeof(data.examples) == "object" &&
-	     data.examples[0] &&
-	     !$(qediv).prologEditor('getSource', "query") )
-	  $(qediv).prologEditor('setSource', data.examples[0]);
+	elem.data(pluginName, data);
+
+	if ( !$(qediv).prologEditor('getSource', "query") )
+	{ if ( typeof(data.examples) == "object" ) {
+	    if ( data.examples[0] )
+	      $(qediv).prologEditor('setSource', data.examples[0]);
+	  } else {
+	    elem[pluginName]('setProgramEditor', $(data.editor), true);
+	  }
+	}
 
 	elem.on("current-program", function(ev, editor) {
 	  elem[pluginName]('setProgramEditor', $(editor));
 	  elem[pluginName]('setAggregates', $(editor));
 	});
 	elem.on("program-loaded", function(ev, editor) {
-	  if ( $(data.editor).data('prologEditor') == $(editor).data('prologEditor') ) {
+	  if ( $(data.editor).data('prologEditor') ==
+	       $(editor).data('prologEditor') ) {
 	    var exl = data.examples();
 	    elem.queryEditor('setQuery', exl && exl[0] ? exl[0] : "");
 	  }
 	});
-
-	elem.data(pluginName, data);
       });
     },
         
@@ -113,8 +118,11 @@ define([ "jquery", "config", "preferences", "cm/lib/codemirror",
      * @param {jQuery} editor has become the new current program
      * editor.  Update the examples and re-run the query highlighting.
      */
-    setProgramEditor: function(editor) {
+    setProgramEditor: function(editor, force) {
       var data = this.data(pluginName);
+
+      if ( data.editor == editor[0] && !force )
+	return this;
 
       data.editor = editor[0];
       if ( data.editor ) {
@@ -147,7 +155,7 @@ define([ "jquery", "config", "preferences", "cm/lib/codemirror",
 	};
 
 	var exl = data.examples();
-	if ( exl && exl[0] ) {
+	if ( exl && exl[0] && this.queryEditor('isClean') ) {
 	  this.queryEditor('setQuery', exl[0]);
 	} else {
 	  editor.prologEditor('refreshHighlight');
@@ -155,6 +163,18 @@ define([ "jquery", "config", "preferences", "cm/lib/codemirror",
       } else
       { data.examples = "";
       }
+    },
+
+    /**
+     * @returns {jQuery} the associated program editor
+     */
+    getProgramEditor: function() {
+      var data = this.data(pluginName);
+
+      if ( data.editor )
+	return $(data.editor);
+      else
+	return $();
     },
 
     /**
@@ -231,9 +251,25 @@ define([ "jquery", "config", "preferences", "cm/lib/codemirror",
      * @param {String} query the new value of the query
      */
     setQuery: function(query) {
-      return this.find(".query")
-	         .prologEditor('setSource', query)
-		 .focus();
+      var data = this.data(pluginName);
+
+      data.cleanGen =
+	this.find(".query")
+	    .prologEditor('setSource', query)
+	    .focus()
+	    .prologEditor('changeGen');
+
+      return this;
+    },
+
+    isClean: function() {
+      var data = this.data(pluginName);
+
+      return ( !this.queryEditor('getQuery') ||
+	       ( data.cleanGen &&
+		 this.find(".query").prologEditor('isClean', data.cleanGen)
+	       )
+	     );
     },
 
     /**

@@ -60,7 +60,6 @@
 
 :- use_module(config).
 :- use_module(help).
-:- use_module(form).
 :- use_module(search).
 
 /** <module> Provide the SWISH application as Prolog HTML component
@@ -73,6 +72,8 @@ swish or parts of swish easily into a page.
 http:location(pldoc, swish(pldoc), [priority(100)]).
 
 :- http_handler(swish(.), swish_reply([]), [id(swish), prefix]).
+:- http_handler('/sitemap.xml', http_reply_file('sitemap.xml', []),[]).
+:- http_handler('/robots.txt', http_reply_file('robots.txt', []),[]).
 
 :- multifile
 	swish_config:source_alias/2,
@@ -104,7 +105,7 @@ swish_reply(Options, Request) :-
 
 swish_reply2(Options, Request) :-
 	option(method(Method), Request),
-	Method \== get, !,
+	Method \== get, Method \== head, !,
 	swish_rest_reply(Method, Request, Options).
 swish_reply2(_, Request) :-
 	serve_resource(Request), !.
@@ -253,7 +254,7 @@ source_metadata(Path, _Code, modified_since_loaded, true) :-
 	ModifiedWhenLoaded \== Modified.
 source_metadata(Path, _Code, module, Module) :-
 	file_name_extension(_, Ext, Path),
-	prolog_file_type(Ext, prolog),
+	user:prolog_file_type(Ext, prolog),
 	xref_public_list(Path, _, [module(Module)]).
 
 confirm_access(Path, Options) :-
@@ -296,7 +297,7 @@ swish_page(Options) -->
 
 swish_navbar(Options) -->
 	swish_resources,
-	html(div([id('navbarhelp'),style('height:23px;margin: 10px 5px;text-align:center;')],
+	html(div([id('navbarhelp'),style('height:40px;margin: 10px 5px;text-align:center;')],
         [span([style('color:maroon')],['cplint on ']),
         span([style('color:darkblue')],['SWI']),
         span([style('color:maroon')],['SH']),
@@ -309,8 +310,23 @@ swish_navbar(Options) -->
         &(nbsp), &(nbsp),
         a([href('/help/credits.html'),target('_blank')],['Credits']),
         &(nbsp), &(nbsp),
-        a([id('dismisslink'),href('')],['Dismiss'])
-        ])
+        a([id('dismisslink'),href('')],['Dismiss']),
+	p([span([style('color:red')],['New']),': ',
+	a([href('/help/help-cplint.html#download-query-results-through-an-api'),target('_blank')],
+	['API']),', ',
+	a([href('/example/inference/truel.pl')],
+	['truel example']),', ',
+	a([href('/help/help-cplint.html#cont'),target('_blank')],
+	['continuous random variables']),' and ',
+	a([href('/help/help-cplint.html#condqcont'),target('_blank')],
+	['likelihood weighting']),': ',
+	a([href('/example/inference/gaussian_mixture.pl')],
+	['Gaussian mixture']),', ',
+	a([href('/example/inference/kalman_filter.pl')],
+	['Kalman filter']),', ',
+	a([href('/example/inference/seven_scientists.pl')],['Bayesian estimation']),', ',
+	a([href('/example/inference/indian_gpa.pl')],['Indian GPA problem'])
+        ])])
         ),
 
 	html(nav([ class([navbar, 'navbar-default']),
@@ -510,7 +526,7 @@ notebooks(swinb, Options) -->
 	  download_source(Spec, NoteBookText, Options),
 	  phrase(source_data_attrs(Options), Extra)
 	},
-	html(div([ class('notebook'),
+	html(div([ class('notebook fullscreen'),
 		   'data-label'('Notebook')		% Use file?
 		 ],
 		 [ pre([ class('notebook-data'),
